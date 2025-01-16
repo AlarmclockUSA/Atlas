@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the user has the 'admin' role
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if the user is on the Essential tier
+    function isEssential() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.tier == "essential";
+    }
+
+    // Users collection: Users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User management collection: General authenticated access
+    match /Users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Seller management collection
+    match /Sellers/{sellerId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Voices collection: Public read, admin-only write
+    match /voices/{voiceId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // PublicData collection: All authenticated users can read
+    match /publicData/{document=**} {
+      allow read: if isAuthenticated();
+    }
+
+    // ProtectedData collection: Only Essential tier users can read
+    match /protectedData/{document=**} {
+      allow read: if isEssential();
+    }
+
+    // Conversations collection: General access for authenticated users
+    match /Conversations/{conversationId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // Add the following rule for the Modals collection
+    match /Modals/{modalId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Restrict write access
+    }
+
+    // PendingUsers collection: Allow read for authentication process
+    match /PendingUsers/{userId} {
+      allow read: if true;
+      allow delete: if request.auth != null;
+    }
+  }
+}
+
