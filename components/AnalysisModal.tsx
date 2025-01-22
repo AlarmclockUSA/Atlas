@@ -48,7 +48,7 @@ export function AnalysisModal({ isOpen, onClose, analysis }: AnalysisModalProps)
             <DialogHeader>
               <DialogTitle>Conversation Analysis</DialogTitle>
               <DialogDescription>
-                Analysis metadata from ElevenLabs for the completed conversation.
+                Review of the completed conversation.
               </DialogDescription>
             </DialogHeader>
           </div>

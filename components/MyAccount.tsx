@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Settings, CreditCard, Bell, Key, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { signOut, updateProfile } from 'firebase/auth'
+import { signOut, updateProfile, getIdToken, sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { db } from '../lib/firebase'
 import { getDoc, doc, updateDoc } from 'firebase/firestore'
@@ -41,6 +41,8 @@ export function MyAccount() {
   const [trackingStartDate, setTrackingStartDate] = useState<Date>(new Date())
   const [maxTimeLimit, setMaxTimeLimit] = useState(600); // Default to 10 hours
   const [newMaxTimeLimit, setNewMaxTimeLimit] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -115,6 +117,50 @@ export function MyAccount() {
     }
   };
 
+  const handleBillingPortal = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const idToken = await getIdToken(user);
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create portal session');
+      }
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Error accessing billing portal:', error);
+      setError(error.message || 'Failed to access billing portal');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!user?.email) return;
+    setIsResettingPassword(true);
+    setError(null);
+    
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      alert('Password reset email sent. Please check your inbox.');
+    } catch (error: any) {
+      setError('Failed to send password reset email: ' + error.message);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   if (!user) {
     return <div>Please sign in to view your account.</div>
   }
@@ -182,21 +228,43 @@ export function MyAccount() {
                 <span className="font-medium">{formatTime(maxTimeLimit)}</span>
               </div>
             </div>
+            <div className="mt-6 space-y-2">
+              <Button
+                onClick={() => window.open('https://billing.stripe.com/p/login/9AQeVr3nIeWHcQU4gg', '_blank')}
+                className="w-full"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Manage Subscription
+              </Button>
+              <p className="text-sm text-muted-foreground text-center">
+                For security reasons, please login using your ATLAS account email
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Display Name</Label>
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleUpdateProfile}>Update Profile</Button>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="displayName">Display Name</Label>
+          <Input
+            id="displayName"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleUpdateProfile}>Update Profile</Button>
+          <Button 
+            variant="outline" 
+            onClick={handleResetPassword}
+            disabled={isResettingPassword}
+          >
+            <Key className="mr-2 h-4 w-4" />
+            {isResettingPassword ? 'Sending...' : 'Reset Password'}
+          </Button>
+        </div>
+      </div>
 
       <Button variant="destructive" className="w-full" onClick={handleSignOut}>
         <LogOut className="mr-2 h-4 w-4" />

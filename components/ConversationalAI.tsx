@@ -685,6 +685,7 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                     </Card>
                   ))}
               </div>
+              <p className="text-center text-muted-foreground mt-6">New Sellers Every Month</p>
             </div>
           </TabsContent>
           <TabsContent value="stats">
