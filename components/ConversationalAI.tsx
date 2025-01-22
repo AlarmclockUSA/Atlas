@@ -106,6 +106,7 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
   const [callDuration, setCallDuration] = useState(0)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid') // Added viewMode state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const updateTimeUsage = async (userId: string, duration: number) => {
     const userRef = doc(db, 'Users', userId);
@@ -412,13 +413,49 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
   }
 
   return (
-    <div className="min-h-screen bg-gradient-custom">
-      <div className="container mx-auto p-8 relative z-10">
-        <header className="flex justify-between items-center mb-8">
+    <div className="min-h-screen w-screen bg-gradient-custom overflow-x-hidden">
+      <div className="w-full px-4 py-6 md:px-8 relative z-10">
+        <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <h1 className="text-4xl font-bold text-white">
             ATLAS
           </h1>
-          <div className="flex items-center space-x-4">
+          
+          {/* Mobile Hamburger */}
+          <div className="relative md:hidden">
+            <button 
+              className="p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            {/* Mobile Menu */}
+            {isMobileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 py-2 bg-background rounded-lg shadow-lg">
+                {isAdmin && (
+                  <button
+                    onClick={navigateToAdminPanel}
+                    className="w-full px-4 py-2 text-sm hover:bg-accent flex items-center"
+                  >
+                    Admin Panel
+                  </button>
+                )}
+                <button
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-2 text-sm hover:bg-accent flex items-center"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex md:flex-wrap items-center gap-4">
             {isAdmin && (
               <Button onClick={navigateToAdminPanel} variant="outline" size="sm">
                 Admin Panel
@@ -432,24 +469,24 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
         </header>
 
         <Tabs defaultValue="agents" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 p-1 bg-secondary/20 rounded-lg mb-6">
+          <TabsList className="flex justify-between w-full p-1 bg-secondary/20 rounded-lg mb-6">
             <TabsTrigger 
               value="agents" 
-              className="text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              className="flex-1 text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold"
             >
               <Users className="w-4 h-4 mr-2" />
               Agents
             </TabsTrigger>
             <TabsTrigger 
               value="stats" 
-              className="text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              className="flex-1 text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold"
             >
               <BarChart className="w-4 h-4 mr-2" />
               Stats & Info
             </TabsTrigger>
             <TabsTrigger 
               value="account" 
-              className="text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              className="flex-1 text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold"
             >
               <User className="w-4 h-4 mr-2" />
               My Account
@@ -492,38 +529,42 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-4">
                             <h3 className="text-2xl font-bold">{activeAgent.name}</h3>
-                            {conversation && (
-                              <>
-                                <AnimatedWaveform isAnimating={true} />
-                                <div className="text-sm font-medium">
-                                  {Math.floor(callDuration / 60)}:{(callDuration % 60).toString().padStart(2, '0')}
-                                </div>
-                              </>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {conversation && (
+                                <>
+                                  <AnimatedWaveform isAnimating={true} />
+                                  <div className="text-sm font-medium">
+                                    {Math.floor(callDuration / 60)}:{(callDuration % 60).toString().padStart(2, '0')}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                           <p className="text-sm text-muted-foreground italic">{activeAgent.description}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={startConversation} 
-                          disabled={conversation !== null || activeAgent?.id?.startsWith('placeholder')}
-                          className="space-x-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          <Mic className="h-4 w-4" />
-                          <span className="hidden sm:inline">Start Call</span>
-                        </Button>
-                        <Button 
-                          onClick={stopConversation} 
-                          disabled={conversation === null}
-                          variant="outline"
-                          className="space-x-2 border-primary/20 hover:bg-primary/10"
-                        >
-                          <Phone className="h-4 w-4" />
-                          <span className="hidden sm:inline">End Call</span>
-                        </Button>
+                      <div className="overflow-x-auto pb-2">
+                        <div className="flex gap-2 min-w-max">
+                          <Button 
+                            onClick={startConversation} 
+                            disabled={conversation !== null || activeAgent?.id?.startsWith('placeholder')}
+                            className="space-x-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Mic className="h-4 w-4" />
+                            <span className="hidden sm:inline">Start Call</span>
+                          </Button>
+                          <Button 
+                            onClick={stopConversation} 
+                            disabled={conversation === null}
+                            variant="outline"
+                            className="space-x-2 border-primary/20 hover:bg-primary/10"
+                          >
+                            <Phone className="h-4 w-4" />
+                            <span className="hidden sm:inline">End Call</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -640,14 +681,15 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                       key={agent.id}
                       className={`transition-all hover:shadow-lg frosted-glass rounded-t-none relative ${
                         agent.isPlaceholder ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${viewMode === 'list' ? 'flex items-center' : ''}`}
+                      } ${viewMode === 'list' ? 'flex items-center' : ''} 
+                      hover:border-2 hover:border-green-500/50`}
                     >
                       <button
                         className={`w-full text-left ${viewMode === 'list' ? 'flex items-center rounded-lg' : ''}`}
                         onClick={() => !agent.isPlaceholder && setActiveAgent(agent)}
                         disabled={agent.isPlaceholder}
                       >
-                        <div className={`${viewMode === 'list' ? 'w-24 h-24 mr-4' : 'mb-4 w-full h-48'} relative`}>
+                        <div className={`${viewMode === 'list' ? 'w-24 h-24 mr-4 flex-shrink-0' : 'mb-4 w-full h-48'} relative`}>
                           <Image
                             src={agent.imageUrl || "/placeholder.svg"}
                             alt={`Property of ${agent.name}`}
@@ -656,10 +698,10 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                             sizes={viewMode === 'list' ? "96px" : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
                           />
                         </div>
-                        <div className={`space-y-4 ${viewMode === 'list' ? 'flex-grow' : ''}`}>
+                        <div className={`space-y-4 ${viewMode === 'list' ? 'flex-grow min-w-0' : ''}`}>
                           <div className={`flex items-start ${viewMode === 'list' ? 'space-x-4' : ''} p-4 relative`}>
                             {viewMode === 'grid' && (
-                              <Avatar className="w-16 h-16 ring-2 ring-primary/20">
+                              <Avatar className="w-16 h-16 ring-2 ring-primary/20 flex-shrink-0">
                                 <AvatarImage src={agent.profilePictureUrl || agent.avatar} alt={agent.name} className="mr-2" />
                                 <AvatarFallback className="bg-secondary text-primary">
                                   {agent.name.split(' ').map(n => n[0]).join('')}
