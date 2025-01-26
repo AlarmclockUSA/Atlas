@@ -9,8 +9,9 @@ service cloud.firestore {
 
     // Helper function to check if the user has the 'admin' role
     function isAdmin() {
+      let user = get(/databases/$(database)/documents/Users/$(request.auth.uid));
       return isAuthenticated() && 
-             get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'admin';
+             (user != null && (user.data.role == 'Admin' || user.data.isAdmin == true));
     }
     
     // Helper function to check if the user is on the Essential tier
@@ -39,6 +40,12 @@ service cloud.firestore {
     match /voices/{voiceId} {
       allow read: if true;
       allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // Scenarios collection: Public read, authenticated write
+    match /Scenarios/{scenarioId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // PublicData collection: All authenticated users can read

@@ -1,5 +1,5 @@
 import { db } from './firebase'; // Ensure this path is correct
-import { collection, addDoc, updateDoc, doc, Timestamp, increment, serverTimestamp, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp, increment, serverTimestamp, runTransaction, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
 
 interface Conversation {
   userId: string;
@@ -22,6 +22,31 @@ interface ConversationData {
   agentName: string;
   propertyAddress: string;
   elevenlabsAgentId: string; // ElevenLabs AgentID
+}
+
+export interface Scenario {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  category: string;
+  agentId: string;
+  agentName: string;
+  objectives: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface PracticeAgent {
+  id: string;
+  name: string;
+  description: string;
+  avatar: string;
+  elevenLabsId: string;
+  type: 'buyer' | 'seller' | 'coach';
+  expertise: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export async function createConversation(data: ConversationData): Promise<string> {
@@ -213,6 +238,110 @@ export async function ensureMaxTimeLimit(userId: string, defaultLimit: number = 
     }
   } catch (error) {
     console.error('Error ensuring max time limit:', error);
+    throw error;
+  }
+}
+
+export async function createScenario(data: Omit<Scenario, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  try {
+    const scenariosRef = collection(db, 'Scenarios');
+    const now = Timestamp.now();
+    const docRef = await addDoc(scenariosRef, {
+      ...data,
+      createdAt: now,
+      updatedAt: now
+    });
+    console.log('Created scenario with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating scenario:', error);
+    throw error;
+  }
+}
+
+export async function updateScenario(id: string, data: Partial<Omit<Scenario, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
+  try {
+    const scenarioRef = doc(db, 'Scenarios', id);
+    await updateDoc(scenarioRef, {
+      ...data,
+      updatedAt: Timestamp.now()
+    });
+    console.log('Updated scenario:', id);
+  } catch (error) {
+    console.error('Error updating scenario:', error);
+    throw error;
+  }
+}
+
+export async function deleteScenario(id: string): Promise<void> {
+  try {
+    const scenarioRef = doc(db, 'Scenarios', id);
+    await deleteDoc(scenarioRef);
+    console.log('Deleted scenario:', id);
+  } catch (error) {
+    console.error('Error deleting scenario:', error);
+    throw error;
+  }
+}
+
+export async function getScenarios(): Promise<Scenario[]> {
+  try {
+    const scenariosRef = collection(db, 'Scenarios');
+    const snapshot = await getDocs(scenariosRef);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Scenario));
+  } catch (error) {
+    console.error('Error getting scenarios:', error);
+    throw error;
+  }
+}
+
+export async function createPracticeAgent(data: Omit<PracticeAgent, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  try {
+    const agentsRef = collection(db, 'PracticeAgents');
+    const now = Timestamp.now();
+    const docRef = await addDoc(agentsRef, {
+      ...data,
+      createdAt: now,
+      updatedAt: now
+    });
+    console.log('Created practice agent with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating practice agent:', error);
+    throw error;
+  }
+}
+
+export async function getPracticeAgent(id: string): Promise<PracticeAgent | null> {
+  try {
+    const agentRef = doc(db, 'PracticeAgents', id);
+    const agentDoc = await getDoc(agentRef);
+    if (!agentDoc.exists()) {
+      return null;
+    }
+    return {
+      id: agentDoc.id,
+      ...agentDoc.data()
+    } as PracticeAgent;
+  } catch (error) {
+    console.error('Error getting practice agent:', error);
+    throw error;
+  }
+}
+
+export async function getPracticeAgents(): Promise<PracticeAgent[]> {
+  try {
+    const agentsRef = collection(db, 'PracticeAgents');
+    const snapshot = await getDocs(agentsRef);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as PracticeAgent));
+  } catch (error) {
+    console.error('Error getting practice agents:', error);
     throw error;
   }
 }

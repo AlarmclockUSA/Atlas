@@ -1,0 +1,13 @@
+// Scenarios collection: Public read, admin-only write
+match /Scenarios/{scenarioId} {
+  allow read: if true;
+  allow write: if isAuthenticated();
+}
+
+// PracticeAgents collection: Public read, admin-only write
+match /PracticeAgents/{agentId} {
+  allow read: if true;
+  allow write: if isAuthenticated();
+}
+
+// PublicData collection: All authenticated users can read 

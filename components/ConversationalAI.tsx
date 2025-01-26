@@ -7,7 +7,7 @@ import { Conversation } from '@11labs/client'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { AlertCircle, Mic, Phone, Info, ChevronDown, ChevronUp, Users, BarChart, User, LogOut, Loader, Clock, Grid, List } from 'lucide-react'
+import { AlertCircle, Mic, Phone, Info, ChevronDown, ChevronUp, Users, BarChart, User, LogOut, Loader, Clock, Grid, List, BookOpen } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { getMostRecentConversationId, fetchElevenLabsAnalysis } from '@/lib/elevenlabsApi'
 import { AnalysisModal } from './AnalysisModal'
 import { AnimatedWaveform } from '@/components/AnimatedWaveform'
+import Scenarios from '@/components/Scenarios'
 
 async function getElevenLabsConversationId(agentId: string): Promise<string | null> {
   try {
@@ -107,6 +108,7 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
   const [callDuration, setCallDuration] = useState(0)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid') // Added viewMode state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentScenario, setCurrentScenario] = useState<string | null>(null);
 
   const updateTimeUsage = async (userId: string, duration: number) => {
     const userRef = doc(db, 'Users', userId);
@@ -194,6 +196,43 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
       checkAndResetTracking(user.uid).catch(console.error)
     }
   }, [user])
+
+  useEffect(() => {
+    // Get agent and scenario from URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const agentId = params.get('agent');
+    const scenarioId = params.get('scenario');
+    const isPractice = params.get('practice') === 'true';
+
+    if (agentId && scenarioId) {
+      if (isPractice) {
+        // For practice sessions, use the ElevenLabs ID directly
+        setActiveAgent({
+          id: agentId,
+          name: 'Practice Agent',
+          description: '',
+          propertyInfo: {
+            address: '',
+            details: []
+          },
+          avatar: '',
+          elevenLabsId: agentId,
+          imageUrl: '',
+          isPlaceholder: false
+        });
+        setCurrentScenario(scenarioId);
+        startConversation();
+      } else {
+        // For regular sessions, find the agent in firebaseAgents
+        const agent = firebaseAgents.find(a => a.id === agentId);
+        if (agent) {
+          setActiveAgent(agent);
+          setCurrentScenario(scenarioId);
+          startConversation();
+        }
+      }
+    }
+  }, [firebaseAgents]);
 
   const checkMonthlyUsage = async (userId: string): Promise<boolean> => {
     const userRef = doc(db, 'Users', userId);
@@ -478,6 +517,13 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
               Agents
             </TabsTrigger>
             <TabsTrigger 
+              value="scenarios" 
+              className="flex-1 text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Scenarios
+            </TabsTrigger>
+            <TabsTrigger 
               value="stats" 
               className="flex-1 text-sm sm:text-base flex items-center justify-center h-10 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold"
             >
@@ -728,6 +774,31 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                   ))}
               </div>
               <p className="text-center text-muted-foreground mt-6">New Sellers Every Month</p>
+            </div>
+          </TabsContent>
+          <TabsContent value="scenarios">
+            <div className="relative">
+              {currentScenario && (
+                <Card className="mb-4 p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-semibold">Active Practice Session</h3>
+                      <p className="text-sm text-muted-foreground">Currently practicing with {activeAgent?.name}</p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => {
+                        setCurrentScenario(null);
+                        setActiveAgent(null);
+                        router.push('/?tab=scenarios');
+                      }}
+                    >
+                      End Practice
+                    </Button>
+                  </div>
+                </Card>
+              )}
+              <Scenarios />
             </div>
           </TabsContent>
           <TabsContent value="stats">
