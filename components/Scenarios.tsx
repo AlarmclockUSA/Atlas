@@ -8,6 +8,7 @@ import { getScenarios, getPracticeAgent, type Scenario, type PracticeAgent } fro
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Conversation } from '@11labs/client'
+import { BookOpen } from 'lucide-react'
 
 const ELEVENLABS_API_KEY = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY
 
@@ -107,61 +108,73 @@ export default function Scenarios() {
           {error}
         </div>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
-        {scenarios.map((scenario) => {
-          const agent = practiceAgents[scenario.agentId]
-          const isActive = activeCall?.scenarioId === scenario.id
-          
-          return (
-            <Card key={scenario.id} className="p-4 space-y-4">
-              <div className="flex items-start space-x-4">
-                {agent && (
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={agent.avatar} alt={agent.name} />
-                    <AvatarFallback>{agent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                  </Avatar>
-                )}
-                <div>
-                  <h3 className="text-lg font-semibold">{scenario.title}</h3>
-                  <p className="text-muted-foreground">{scenario.description}</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Badge>{scenario.difficulty}</Badge>
-                <Badge variant="outline">{scenario.category}</Badge>
-                {agent && <Badge variant="secondary">{agent.type}</Badge>}
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-2">Objectives:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {scenario.objectives?.map((objective, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">{objective}</li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Practice with: {agent?.name || scenario.agentName}</p>
+      {scenarios.length === 0 ? (
+        <Card className="p-8 text-center">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold">Coming Soon</h3>
+            <p className="text-muted-foreground">New practice scenarios are being developed and will be available soon.</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {scenarios.map((scenario) => {
+            const agent = practiceAgents[scenario.agentId]
+            const isActive = activeCall?.scenarioId === scenario.id
+            
+            return (
+              <Card key={scenario.id} className="p-4 space-y-4">
+                <div className="flex items-start space-x-4">
                   {agent && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Expertise: {agent.expertise.join(', ')}
-                    </p>
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={agent.avatar} alt={agent.name} />
+                      <AvatarFallback>{agent.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
                   )}
+                  <div>
+                    <h3 className="text-lg font-semibold">{scenario.title}</h3>
+                    <p className="text-muted-foreground">{scenario.description}</p>
+                  </div>
                 </div>
-                <Button 
-                  onClick={() => isActive ? endCall() : startCall(scenario.agentId, scenario.id)}
-                  variant={isActive ? "destructive" : "default"}
-                >
-                  {isActive ? "End Call" : "Start Call"}
-                </Button>
-              </div>
-            </Card>
-          )
-        })}
-      </div>
+                
+                <div className="flex gap-2">
+                  <Badge>{scenario.difficulty}</Badge>
+                  <Badge variant="outline">{scenario.category}</Badge>
+                  {agent && <Badge variant="secondary">{agent.type}</Badge>}
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Objectives:</h4>
+                  <ul className="list-disc list-inside space-y-1">
+                    {scenario.objectives?.map((objective, index) => (
+                      <li key={index} className="text-sm text-muted-foreground">{objective}</li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Practice with: {agent?.name || scenario.agentName}</p>
+                    {agent && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Expertise: {agent.expertise.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <Button 
+                    onClick={() => isActive ? endCall() : startCall(scenario.agentId, scenario.id)}
+                    variant={isActive ? "destructive" : "default"}
+                  >
+                    {isActive ? "End Call" : "Start Call"}
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 } 
