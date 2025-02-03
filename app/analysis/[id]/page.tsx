@@ -10,12 +10,14 @@ import { Card } from '@/components/ui/card'
 import { db } from '@/lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { fetchElevenLabsAnalysis } from '@/lib/elevenlabsApi'
-import { analyzeConversation, AnalysisResponse } from '@/lib/anthropicApi'
 import { Button } from "@/components/ui/button"
 
 // Dynamically import components
 const SkillsRadarChart = dynamic(() => import('@/components/SkillsRadarChart'), { ssr: false })
 const AnalysisCallButtons = dynamic(() => import('@/components/AnalysisCallButtons').then(mod => mod.AnalysisCallButtons), { ssr: false })
+
+// Import types and functions from anthropicApi
+import type { AnalysisResponse } from '@/lib/anthropicApi'
 
 interface ElevenLabsAnalysis {
   transcript_summary?: string;
@@ -103,6 +105,7 @@ export default function AnalysisPage({ params, searchParams }: PageProps) {
             const transcript = elevenlabs.transcript
               .map((entry: any) => `{${entry.role}} ${entry.message}`)
               .join('\n\n')
+            const { analyzeConversation } = await import('@/lib/anthropicApi')
             anthropic = await analyzeConversation(transcript)
           } catch (error) {
             console.error('Error generating Anthropic analysis:', error)
