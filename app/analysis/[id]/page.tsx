@@ -16,8 +16,14 @@ import { Button } from "@/components/ui/button"
 const SkillsRadarChart = dynamic(() => import('@/components/SkillsRadarChart'), { ssr: false })
 const AnalysisCallButtons = dynamic(() => import('@/components/AnalysisCallButtons').then(mod => mod.AnalysisCallButtons), { ssr: false })
 
-// Import types and functions from anthropicApi
+// Import only the type
 import type { AnalysisResponse } from '@/lib/anthropicApi'
+
+// Separate function to handle Anthropic analysis
+async function generateAnthropicAnalysis(transcript: string) {
+  const { analyzeConversation } = await import('@/lib/anthropicApi')
+  return analyzeConversation(transcript)
+}
 
 interface ElevenLabsAnalysis {
   transcript_summary?: string;
@@ -105,8 +111,7 @@ export default function AnalysisPage({ params, searchParams }: PageProps) {
             const transcript = elevenlabs.transcript
               .map((entry: any) => `{${entry.role}} ${entry.message}`)
               .join('\n\n')
-            const { analyzeConversation } = await import('@/lib/anthropicApi')
-            anthropic = await analyzeConversation(transcript)
+            anthropic = await generateAnthropicAnalysis(transcript)
           } catch (error) {
             console.error('Error generating Anthropic analysis:', error)
           }
