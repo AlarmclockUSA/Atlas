@@ -39,3 +39,6 @@ next-env.d.ts
 # IDE
 .idea
 .vscode 
+
+# sensitive files
+serviceAccountKey.json 
