@@ -12,6 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LogIn } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import Link from 'next/link'
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
@@ -39,7 +41,21 @@ export function SignInForm() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      const token = await userCredential.user.getIdToken()
+      const user = userCredential.user
+      const token = await user.getIdToken()
+
+      // Update user document
+      const userRef = doc(db, 'Users', user.uid)
+      const userDoc = await getDoc(userRef)
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
+          hasPaid: userData.hasPaid || false // Preserve existing hasPaid status
+        })
+      }
+      
       document.cookie = `session=${token}; path=/`
       router.push('/')
     } catch (error: any) {
@@ -57,7 +73,49 @@ export function SignInForm() {
     try {
       const provider = new GoogleAuthProvider()
       const userCredential = await signInWithPopup(auth, provider)
-      const token = await userCredential.user.getIdToken()
+      const user = userCredential.user
+      const token = await user.getIdToken()
+      
+      // Create or update user document
+      const userRef = doc(db, 'Users', user.uid)
+      const userDoc = await getDoc(userRef)
+      
+      if (!userDoc.exists()) {
+        // Create new user document
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 3) // 3 day trial
+        
+        await setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          role: 'user',
+          isActive: true,
+          totalTokenUsage: 0,
+          totalTimeUsage: 0,
+          maxTimeLimit: 600, // 10 hours in minutes
+          lastResetDate: serverTimestamp(),
+          trackingStartDate: serverTimestamp(),
+          tier: 'basic',
+          callDurations: [],
+          totalCallDuration: 0,
+          trialEndDate: trialEndDate,
+          isTrialComplete: false,
+          hasPaid: false,
+          isOverdue: false // New field for Stripe/Zapier integration
+        })
+      } else {
+        // Update last login and ensure email is set, but preserve hasPaid and isOverdue status
+        const userData = userDoc.data();
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
+          email: user.email,
+          hasPaid: userData.hasPaid || false, // Preserve existing hasPaid status
+          isOverdue: userData.isOverdue || false // Preserve existing isOverdue status
+        })
+      }
+
       document.cookie = `session=${token}; path=/`
       router.push('/')
     } catch (error: any) {

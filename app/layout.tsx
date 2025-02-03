@@ -1,7 +1,9 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { Metadata } from 'next'
+import { Metadata, Viewport } from 'next'
+import { TrialProvider } from '@/contexts/TrialProvider'
+import { ThemeProvider } from '@/components/ui/theme-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -67,10 +69,11 @@ export const metadata: Metadata = {
   },
 }
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
@@ -79,11 +82,20 @@ export default function RootLayout({
  children: React.ReactNode
 }) {
  return (
-   <html lang="en" className="light">
+   <html lang="en" className="light" suppressHydrationWarning>
      <body className={inter.className}>
-       <AuthProvider>
-         {children}
-       </AuthProvider>
+       <ThemeProvider
+         attribute="class"
+         defaultTheme="dark"
+         enableSystem
+         disableTransitionOnChange
+       >
+         <AuthProvider>
+           <TrialProvider>
+             {children}
+           </TrialProvider>
+         </AuthProvider>
+       </ThemeProvider>
      </body>
    </html>
  )

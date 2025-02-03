@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { Anthropic } from '@anthropic-ai/sdk';
 
 // Define detailed types for the analysis response
 export interface FrameworkScore {

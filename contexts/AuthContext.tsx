@@ -1,12 +1,11 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { User, onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth, db } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
 import { LoadingScreen } from '@/components/LoadingScreen'
-import { db } from '@/lib/firebase'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore'
 import { ensureMaxTimeLimit } from '@/lib/firebaseUtils'
 
 interface AuthContextType {
@@ -28,37 +27,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (window.location.pathname === '/create-password') {
-        setLoading(false);
-        return;
+        setLoading(false)
+        return
       }
+
       if (user) {
         try {
           console.log('Attempting to fetch user data for UID:', user.uid)
+          const userRef = doc(db, 'Users', user.uid)
+          const userDoc = await getDoc(userRef)
           
-          // Query the Users collection where UserUID matches the Firebase Auth UID
-          const usersRef = collection(db, 'Users')
-          const q = query(usersRef, where('UserUID', '==', user.uid))
-          const querySnapshot = await getDocs(q)
-          
-          if (!querySnapshot.empty) {
-            const userDoc = querySnapshot.docs[0]
+          if (userDoc.exists()) {
             const userData = userDoc.data()
             console.log('Found user document:', userDoc.id)
             console.log('Firestore user data:', userData)
 
             // Check both isAdmin and role fields
             const isAdmin = userData?.isAdmin === true || userData?.role === 'Admin'
-
-            console.log('Admin status:', {
-              isAdmin,
-              role: userData?.role,
-              finalStatus: isAdmin
-            })
-
             setIsAdmin(isAdmin)
 
-            // Ensure max time limit is set
-            await ensureMaxTimeLimit(user.uid)
+            // Check and update trial fields if missing
+            if (!userData.trialEndDate || !userData.hasOwnProperty('isTrialComplete')) {
+              // Calculate trial end date based on account creation
+              const createdAt = userData.createdAt?.toDate() || new Date()
+              const trialEndDate = new Date(createdAt)
+              trialEndDate.setDate(trialEndDate.getDate() + 3) // 3 day trial from creation
+              
+              // Update the user document with trial fields
+              await updateDoc(userRef, {
+                trialEndDate: trialEndDate,
+                isTrialComplete: false
+              })
+              
+              console.log('Updated trial fields based on creation date:', {
+                createdAt,
+                trialEndDate,
+                userId: user.uid
+              })
+            } else {
+              // Check if trial has expired
+              const trialEndDate = userData.trialEndDate.toDate()
+              const now = new Date()
+              const hasPaid = userData.hasPaid || false
+              
+              // Only update isTrialComplete if they haven't paid
+              if (trialEndDate < now && !userData.isTrialComplete && !hasPaid) {
+                // Trial has expired, update isTrialComplete
+                await updateDoc(userRef, {
+                  isTrialComplete: true
+                })
+                console.log('Trial expired, marked as complete for user:', user.uid)
+              }
+            }
           } else {
             console.log('No matching user document found for UserUID:', user.uid)
             setIsAdmin(false)
@@ -66,11 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Create a new user document with default max time limit
             await ensureMaxTimeLimit(user.uid)
           }
-          setUser({...user, isAdmin}) // Updated setUser call
-        } catch (error) {
-          console.error('Error fetching user data:', error)
           setUser(user)
-          setIsAdmin(false)
+        } catch (error) {
+          console.error('Error processing user data:', error)
         }
       } else {
         setUser(null)

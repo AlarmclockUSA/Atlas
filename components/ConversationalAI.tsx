@@ -17,7 +17,7 @@ import { MyAccount } from '@/components/MyAccount'
 import { signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
-import { createConversation, endConversation, updateConversationTokenUsage, updateUserTokenUsage, updateConversationDuration, updateUserTotalCallDuration, checkAndResetTracking } from '@/lib/firebaseUtils'
+import { createConversation, endConversation, updateConversationTokenUsage, updateUserTokenUsage, updateConversationDuration, updateUserTotalCallDuration, checkAndResetTracking, saveAnthropicAnalysis } from '@/lib/firebaseUtils'
 import { collection, getDocs, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -25,6 +25,7 @@ import { getMostRecentConversationId, fetchElevenLabsAnalysis } from '@/lib/elev
 import { AnalysisModal } from './AnalysisModal'
 import { AnimatedWaveform } from '@/components/AnimatedWaveform'
 import Scenarios from '@/components/Scenarios'
+import { analyzeConversation } from '@/lib/anthropicApi'
 
 async function getElevenLabsConversationId(agentId: string): Promise<string | null> {
   try {
@@ -376,21 +377,55 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
         
         if (recentConversationId) {
           setIsAnalysisLoading(true);
-          setIsAnalysisModalOpen(true);
           try {
-            const analysis = await fetchElevenLabsAnalysis(recentConversationId);
-            if (!analysis) {
-              throw new Error('Analysis data is null or undefined');
+            // Fetch Eleven Labs analysis with retries
+            let elevenLabsAnalysis = null;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (!elevenLabsAnalysis && retryCount < maxRetries) {
+              try {
+                elevenLabsAnalysis = await fetchElevenLabsAnalysis(recentConversationId);
+                if (!elevenLabsAnalysis?.transcript) {
+                  throw new Error('Transcript not available yet');
+                }
+              } catch (error) {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
+                }
+              }
             }
-            setAnalysisData(analysis);
 
+            if (!elevenLabsAnalysis) {
+              throw new Error('Failed to fetch Eleven Labs analysis after retries');
+            }
+
+            // Save Eleven Labs analysis
             const conversationRef = doc(db, 'Conversations', conversationId);
             await updateDoc(conversationRef, { 
-              analysis,
+              analysis: elevenLabsAnalysis,
               elevenlabsConversationId: recentConversationId
             });
+
+            // Generate and save Anthropic analysis only if we have the transcript
+            if (elevenLabsAnalysis.transcript) {
+              try {
+                const transcript = elevenLabsAnalysis.transcript
+                  .map((entry: any) => `{${entry.role}} ${entry.message}`)
+                  .join('\n\n');
+                const anthropicAnalysis = await analyzeConversation(transcript);
+                await saveAnthropicAnalysis(conversationId, anthropicAnalysis);
+              } catch (anthropicError) {
+                console.error('Error generating Anthropic analysis:', anthropicError);
+                // Continue with navigation even if Anthropic analysis fails
+              }
+            }
+
+            // Navigate to analysis page
+            router.push(`/analysis/${conversationId}`);
           } catch (analysisError) {
-            console.error('Error fetching or processing analysis:', analysisError);
+            console.error('Error in analysis process:', analysisError);
             setError(`Failed to fetch conversation analysis: ${analysisError instanceof Error ? analysisError.message : 'Unknown error'}`);
           } finally {
             setIsAnalysisLoading(false);
@@ -399,11 +434,10 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
           throw new Error('Failed to fetch conversation details: No recent conversation ID found');
         }
       } catch (error) {
-        console.error('Error ending conversation:', error);
-        setError(`Error ending conversation: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+        console.error('Error stopping conversation:', error);
+        setError(`Failed to stop conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setIsEnding(false);
-        setCallDuration(0); // Reset call duration
       }
     }
   }

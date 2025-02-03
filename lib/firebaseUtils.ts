@@ -1,5 +1,6 @@
 import { db } from './firebase'; // Ensure this path is correct
 import { collection, addDoc, updateDoc, doc, Timestamp, increment, serverTimestamp, runTransaction, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { AnalysisResponse } from './anthropicApi';
 
 interface Conversation {
   userId: string;
@@ -13,6 +14,8 @@ interface Conversation {
   tokenUsage: number;
   elevenlabsAgentId: string; // ElevenLabs AgentID
   duration?: number;
+  analysis?: any; // Eleven Labs analysis
+  anthropicAnalysis?: AnalysisResponse; // Anthropic analysis
 }
 
 interface ConversationData {
@@ -343,6 +346,71 @@ export async function getPracticeAgents(): Promise<PracticeAgent[]> {
   } catch (error) {
     console.error('Error getting practice agents:', error);
     throw error;
+  }
+}
+
+export async function saveAnalysisToFirebase(conversationId: string, analysis: any): Promise<void> {
+  try {
+    const conversationRef = doc(db, 'Conversations', conversationId);
+    await updateDoc(conversationRef, {
+      analysis,
+      analysisTimestamp: serverTimestamp()
+    });
+    console.log('Analysis saved for conversation:', conversationId);
+  } catch (error) {
+    console.error('Error saving analysis:', error);
+    throw error;
+  }
+}
+
+export async function saveAnthropicAnalysis(conversationId: string, analysis: AnalysisResponse): Promise<void> {
+  try {
+    const conversationRef = doc(db, 'Conversations', conversationId);
+    await updateDoc(conversationRef, {
+      anthropicAnalysis: analysis
+    });
+    console.log('Anthropic analysis saved for conversation: ', conversationId);
+  } catch (error) {
+    console.error('Error saving Anthropic analysis: ', error);
+    throw error;
+  }
+}
+
+export async function checkTrialStatus(userId: string): Promise<boolean> {
+  try {
+    const userRef = doc(db, 'Users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      return false;
+    }
+
+    const userData = userDoc.data();
+    const trialEndDate = userData.trialEndDate?.toDate();
+    const isTrialComplete = userData.isTrialComplete;
+    const hasPaid = userData.hasPaid || false;
+    const isOverdue = userData.isOverdue || false;
+
+    // If they've paid but are not overdue, grant access
+    if (hasPaid && !isOverdue) {
+      return true;
+    }
+
+    // If trial end date exists and hasn't passed, allow access
+    if (trialEndDate && trialEndDate > new Date()) {
+      return true;
+    }
+
+    // If we get here, either:
+    // 1. Trial has expired (trialEndDate < now)
+    // 2. No trial end date exists
+    // 3. Trial is complete but they haven't paid
+    // 4. They've paid but are overdue
+    // In all these cases, deny access
+    return false;
+  } catch (error) {
+    console.error('Error checking trial status:', error);
+    return false;
   }
 }
 

@@ -14,6 +14,9 @@ import { Eye, EyeOff } from 'lucide-react'
 
 async function setupUserFirestore(uid: string, email: string, displayName: string) {
   const userRef = doc(db, 'Users', uid)
+  const trialEndDate = new Date()
+  trialEndDate.setDate(trialEndDate.getDate() + 3) // 3 day trial
+
   await setDoc(userRef, {
     email: email,
     displayName: displayName,
@@ -28,7 +31,12 @@ async function setupUserFirestore(uid: string, email: string, displayName: strin
     trackingStartDate: serverTimestamp(),
     tier: 'basic',
     callDurations: [],
-    totalCallDuration: 0
+    totalCallDuration: 0,
+    // New trial fields
+    trialEndDate: trialEndDate,
+    isTrialComplete: false,
+    hasPaid: false,
+    isOverdue: false // New field for Stripe/Zapier integration
   })
 }
 
