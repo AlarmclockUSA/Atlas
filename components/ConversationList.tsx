@@ -3,6 +3,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '@/lib/firebase'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { useRouter } from 'next/navigation'
 
 interface Conversation {
   id: string;
@@ -16,6 +17,7 @@ interface Conversation {
   status: string;
   conversation_id: string;
   userId: string;
+  anthropicAnalysis?: any;
 }
 
 interface ConversationListProps {
@@ -26,6 +28,7 @@ interface ConversationListProps {
 
 export function ConversationList({ onSelectConversation, hideConversationIds = false, userId }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const router = useRouter()
 
   useEffect(() => {
     const conversationsRef = collection(db, 'Conversations')
@@ -47,62 +50,75 @@ export function ConversationList({ onSelectConversation, hideConversationIds = f
         elevenlabsAgentId: doc.data().elevenlabsAgentId,
         elevenlabsConversationId: doc.data().elevenlabsConversationId,
         conversation_id: doc.data().conversation_id,
-        userId: doc.data().userId
+        userId: doc.data().userId,
+        anthropicAnalysis: doc.data().anthropicAnalysis || null
       } as Conversation))
       setConversations(fetchedConversations)
     }, (error) => {
       console.error("Error fetching conversations: ", error)
     })
 
-    // Cleanup function
     return () => unsubscribe()
   }, [userId])
 
+  const handleViewAnalysis = (conversationId: string) => {
+    router.push(`/analysis/${conversationId}?hideTranscript=true`)
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Start Time</TableHead>
-          <TableHead>Call Duration</TableHead>
-          <TableHead>Agent</TableHead>
-          {!hideConversationIds && <TableHead>ElevenLabs Conversation ID</TableHead>}
-          {!hideConversationIds && <TableHead>Conversation ID</TableHead>}
-          <TableHead>Status</TableHead>
-          <TableHead>Action</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {conversations.map((conversation) => (
-          <TableRow key={conversation.id}>
-            <TableCell>{conversation.startTime.toLocaleString()}</TableCell>
-            <TableCell>
-              {conversation.duration
-                ? `${conversation.duration} min`
-                : conversation.endTime
-                  ? `${Math.round((conversation.endTime.getTime() - conversation.startTime.getTime()) / 1000 / 60)} min`
-                  : 'N/A'}
-            </TableCell>
-            <TableCell>{conversation.agentName}</TableCell>
-            {!hideConversationIds && (
-              <TableCell>
-                {conversation.elevenlabsConversationId || 'Processing...'}
-              </TableCell>
-            )}
-            {!hideConversationIds && (
-              <TableCell>
-                {conversation.conversation_id || 'N/A'}
-              </TableCell>
-            )}
-            <TableCell>{conversation.status}</TableCell>
-            <TableCell>
-              <Button onClick={() => onSelectConversation(conversation.id)}>
-                View Details
-              </Button>
-            </TableCell>
+    <div className="w-full overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-muted/50">
+            <TableHead className="font-medium">Start Time</TableHead>
+            <TableHead className="font-medium">Call Duration</TableHead>
+            <TableHead className="font-medium">Agent</TableHead>
+            {!hideConversationIds && <TableHead className="font-medium">ElevenLabs Conversation ID</TableHead>}
+            {!hideConversationIds && <TableHead className="font-medium">Conversation ID</TableHead>}
+            <TableHead className="font-medium">Status</TableHead>
+            <TableHead className="font-medium">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {conversations.map((conversation) => (
+            <TableRow key={conversation.id} className="hover:bg-muted/50">
+              <TableCell className="font-medium">{conversation.startTime.toLocaleString()}</TableCell>
+              <TableCell>
+                {conversation.duration
+                  ? `${conversation.duration} min`
+                  : conversation.endTime
+                    ? `${Math.round((conversation.endTime.getTime() - conversation.startTime.getTime()) / 1000 / 60)} min`
+                    : 'N/A'}
+              </TableCell>
+              <TableCell>{conversation.agentName}</TableCell>
+              {!hideConversationIds && (
+                <TableCell>
+                  {conversation.elevenlabsConversationId || 'Processing...'}
+                </TableCell>
+              )}
+              {!hideConversationIds && (
+                <TableCell>
+                  {conversation.conversation_id || 'N/A'}
+                </TableCell>
+              )}
+              <TableCell>{conversation.status}</TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button onClick={() => onSelectConversation(conversation.id)} variant="secondary" size="sm">
+                    Quick View
+                  </Button>
+                  {conversation.anthropicAnalysis && (
+                    <Button onClick={() => handleViewAnalysis(conversation.id)} variant="default" size="sm">
+                      Full Analysis
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 
