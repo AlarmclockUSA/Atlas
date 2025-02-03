@@ -85,9 +85,9 @@ export function ConversationList({ onSelectConversation, hideConversationIds = f
               <TableCell className="font-medium">{conversation.startTime.toLocaleString()}</TableCell>
               <TableCell>
                 {conversation.duration
-                  ? `${conversation.duration} min`
+                  ? `${conversation.duration} sec`
                   : conversation.endTime
-                    ? `${Math.round((conversation.endTime.getTime() - conversation.startTime.getTime()) / 1000 / 60)} min`
+                    ? `${Math.round((conversation.endTime.getTime() - conversation.startTime.getTime()) / 1000)} sec`
                     : 'N/A'}
               </TableCell>
               <TableCell>{conversation.agentName}</TableCell>
