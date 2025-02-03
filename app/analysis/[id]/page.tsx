@@ -11,14 +11,11 @@ import { db } from '@/lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { fetchElevenLabsAnalysis } from '@/lib/elevenlabsApi'
 import { analyzeConversation, AnalysisResponse } from '@/lib/anthropicApi'
-import { SkillsRadarChart } from '@/components/SkillsRadarChart'
 import { Button } from "@/components/ui/button"
 
-// Dynamically import the AnalysisCallButtons with no SSR
-const AnalysisCallButtons = dynamic(
-  () => import('@/components/AnalysisCallButtons').then(mod => mod.AnalysisCallButtons),
-  { ssr: false }
-)
+// Dynamically import components
+const SkillsRadarChart = dynamic(() => import('@/components/SkillsRadarChart'), { ssr: false })
+const AnalysisCallButtons = dynamic(() => import('@/components/AnalysisCallButtons').then(mod => mod.AnalysisCallButtons), { ssr: false })
 
 interface ElevenLabsAnalysis {
   transcript_summary?: string;
