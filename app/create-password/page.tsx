@@ -31,12 +31,7 @@ async function setupUserFirestore(uid: string, email: string, displayName: strin
     trackingStartDate: serverTimestamp(),
     tier: 'basic',
     callDurations: [],
-    totalCallDuration: 0,
-    // New trial fields
-    trialEndDate: trialEndDate,
-    isTrialComplete: false,
-    hasPaid: false,
-    isOverdue: false // New field for Stripe/Zapier integration
+    totalCallDuration: 0
   })
 }
 

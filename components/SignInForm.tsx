@@ -52,8 +52,26 @@ export function SignInForm() {
         const userData = userDoc.data();
         await updateDoc(userRef, {
           lastLogin: serverTimestamp(),
-          hasPaid: userData.hasPaid || false // Preserve existing hasPaid status
-        })
+          email: user.email
+        });
+      } else {
+        // If user document doesn't exist (shouldn't happen normally), create it
+        await setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          role: 'user',
+          isActive: true,
+          totalTokenUsage: 0,
+          totalTimeUsage: 0,
+          maxTimeLimit: 600, // 10 hours in minutes
+          lastResetDate: serverTimestamp(),
+          trackingStartDate: serverTimestamp(),
+          tier: 'basic',
+          callDurations: [],
+          totalCallDuration: 0
+        });
       }
       
       document.cookie = `session=${token}; path=/`
@@ -80,11 +98,14 @@ export function SignInForm() {
       const userRef = doc(db, 'Users', user.uid)
       const userDoc = await getDoc(userRef)
       
-      if (!userDoc.exists()) {
-        // Create new user document
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 3) // 3 day trial
-        
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
+          email: user.email
+        });
+      } else {
+        // If user document doesn't exist (shouldn't happen normally), create it
         await setDoc(userRef, {
           email: user.email,
           displayName: user.displayName || user.email?.split('@')[0] || 'User',
@@ -99,21 +120,8 @@ export function SignInForm() {
           trackingStartDate: serverTimestamp(),
           tier: 'basic',
           callDurations: [],
-          totalCallDuration: 0,
-          trialEndDate: trialEndDate,
-          isTrialComplete: false,
-          hasPaid: false,
-          isOverdue: false // New field for Stripe/Zapier integration
-        })
-      } else {
-        // Update last login and ensure email is set, but preserve hasPaid and isOverdue status
-        const userData = userDoc.data();
-        await updateDoc(userRef, {
-          lastLogin: serverTimestamp(),
-          email: user.email,
-          hasPaid: userData.hasPaid || false, // Preserve existing hasPaid status
-          isOverdue: userData.isOverdue || false // Preserve existing isOverdue status
-        })
+          totalCallDuration: 0
+        });
       }
 
       document.cookie = `session=${token}; path=/`

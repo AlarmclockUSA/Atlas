@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth, db } from '@/lib/firebase'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from 'lucide-react'
@@ -34,8 +34,23 @@ export default function SignUpSuccessPage() {
         await setDoc(doc(db, 'Users', user.uid), {
           email: user.email,
           displayName: displayName,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
           role: 'user',
-          totalTokenUsage: 0
+          isActive: true,
+          totalTokenUsage: 0,
+          totalTimeUsage: 0,
+          maxTimeLimit: 600, // 10 hours in minutes
+          lastResetDate: serverTimestamp(),
+          trackingStartDate: serverTimestamp(),
+          tier: 'basic',
+          callDurations: [],
+          totalCallDuration: 0,
+          // Trial and subscription fields
+          trialEndDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+          isTrialComplete: false,
+          hasPaid: false,
+          isOverdue: false
         })
 
         localStorage.removeItem('pendingSignUp')
