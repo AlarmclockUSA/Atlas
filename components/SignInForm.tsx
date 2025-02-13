@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LogIn } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import Link from 'next/link'
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 const GoogleIcon = () => (
@@ -90,8 +90,23 @@ export function SignInForm() {
 
     try {
       const provider = new GoogleAuthProvider()
-      const userCredential = await signInWithPopup(auth, provider)
-      const user = userCredential.user
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      if (!user.email) {
+        throw new Error('No email provided from Google account')
+      }
+
+      // Check if email exists in PendingUsers
+      const pendingUserRef = doc(db, 'PendingUsers', user.email.toLowerCase())
+      const pendingUserSnap = await getDoc(pendingUserRef)
+
+      if (!pendingUserSnap.exists()) {
+        await signOut(auth) // Sign out the unauthorized user
+        throw new Error('Email not authorized. Please contact support to request access.')
+      }
+
+      const pendingUserData = pendingUserSnap.data()
       const token = await user.getIdToken()
       
       // Create or update user document
@@ -99,30 +114,31 @@ export function SignInForm() {
       const userDoc = await getDoc(userRef)
       
       if (userDoc.exists()) {
-        const userData = userDoc.data();
         await updateDoc(userRef, {
           lastLogin: serverTimestamp(),
           email: user.email
-        });
+        })
       } else {
-        // If user document doesn't exist (shouldn't happen normally), create it
         await setDoc(userRef, {
           email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          displayName: user.displayName || pendingUserData.displayName || user.email.split('@')[0],
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-          role: 'user',
+          role: pendingUserData.role || 'user',
           isActive: true,
           totalTokenUsage: 0,
           totalTimeUsage: 0,
-          maxTimeLimit: 600, // 10 hours in minutes
+          maxTimeLimit: 600,
           lastResetDate: serverTimestamp(),
           trackingStartDate: serverTimestamp(),
           tier: 'basic',
           callDurations: [],
           totalCallDuration: 0
-        });
+        })
       }
+
+      // Delete from PendingUsers after successful account creation
+      await deleteDoc(pendingUserRef)
 
       document.cookie = `session=${token}; path=/`
       router.push('/')

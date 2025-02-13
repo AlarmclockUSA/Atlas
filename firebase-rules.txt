@@ -25,9 +25,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // User management collection: General authenticated access
+    // User management collection: Restricted authenticated access
     match /Users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() 
+        && exists(/databases/$(database)/documents/PendingUsers/$(request.resource.data.email));
+      allow update: if isAuthenticated() 
+        && request.auth.uid == userId;
+      allow delete: if isAdmin();
     }
 
     // Seller management collection

@@ -530,7 +530,12 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:flex-wrap items-center gap-4">
             {isAdmin && (
-              <Button onClick={navigateToAdminPanel} variant="outline" size="sm">
+              <Button 
+                onClick={navigateToAdminPanel} 
+                variant="outline" 
+                size="sm"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 Admin Panel
               </Button>
             )}
@@ -756,6 +761,7 @@ const ConversationalAI: React.FC<ConversationalAIProps> = ({ initialConversation
                     if (a.isPlaceholder === b.isPlaceholder) return 0;
                     return a.isPlaceholder ? 1 : -1;
                   })
+                  .reverse()
                   .map((agent, index) => (
                     <Card
                       key={agent.id}
